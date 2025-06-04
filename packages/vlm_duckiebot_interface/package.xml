@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>vlm_duckiebot_interface</name>
+  <version>0.1.0</version>
+  <description>Manages VLM-based exploration mode for Duckiebots, including communication with a remote processing server.</description>
+  <maintainer email="your_email@example.com">Your Name</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>duckietown_msgs</depend>
+  <depend>geometry_msgs</depend>
+
+  <exec_depend>python-requests</exec_depend> <!-- For HTTP communication -->
+  <!-- Add other dependencies as needed -->
+</package>

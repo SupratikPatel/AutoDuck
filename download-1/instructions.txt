@@ -1,0 +1,55 @@
+## Laptop VLM Server Instructions
+
+This folder (`download-1`) contains the Python FastAPI server that runs on your laptop/PC.
+Its purpose is to:
+1. Receive camera images from the Duckiebot.
+2. Use a local Ollama Vision Language Model (VLM) (e.g., LLaVA) to analyze the image and decide on a navigation command.
+3. Send this command back to the Duckiebot.
+4. Provide a simple web GUI to monitor the process.
+
+### Prerequisites:
+
+1.  **Python 3.8+** installed on your laptop.
+2.  **Ollama** installed on your laptop. (Visit https://ollama.ai/)
+3.  A **LLaVA model** (or compatible VLM) pulled via Ollama. 
+    Example: `ollama pull llava`
+4.  Required **Python libraries** installed. From the `download-1` directory (or its parent), run:
+    ```bash
+    pip install fastapi uvicorn ollama Pillow pydantic jinja2
+    ```
+
+### Files:
+
+*   `laptop_vlm_server.py`: The main FastAPI server script.
+*   `templates/index.html`: The HTML template for the web GUI.
+
+### How to Start the Server:
+
+1.  **Open a terminal** on your laptop.
+2.  **Navigate to this directory** (`download-1`):
+    ```bash
+    cd path/to/your_project_root/download-1
+    ```
+3.  **Ensure Ollama is running.** (Usually, starting the Ollama desktop application is sufficient, or run `ollama serve` if you installed the CLI version).
+4.  **Run the FastAPI server using Uvicorn:**
+    ```bash
+    uvicorn laptop_vlm_server:app --host 0.0.0.0 --port 5000
+    ```
+    *   `--host 0.0.0.0`: Makes the server accessible from other devices on your local network (like the Duckiebot).
+    *   `--port 5000`: The port the server will listen on. This should match the configuration on the Duckiebot.
+    *   You can add `--reload` if you are actively developing the `laptop_vlm_server.py` file (e.g., `uvicorn laptop_vlm_server:app --host 0.0.0.0 --port 5000 --reload`).
+
+5.  **Access the GUI (Optional):**
+    Open a web browser on your laptop (or any device on the same network) and navigate to:
+    `http://<your_laptop_ip>:5000/`
+    (Replace `<your_laptop_ip>` with your laptop's actual IP address on the local network).
+
+### Configuration within `laptop_vlm_server.py`:
+
+*   **`OLLAMA_VLM_MODEL_NAME`**: Near the top of the script, ensure this variable matches the name of the LLaVA model you want to use (e.g., "llava", "llava:7b-v1.6"). You can see your available models by running `ollama list` in your terminal.
+
+### Important Notes:
+
+*   Your laptop and the Duckiebot must be on the **same WiFi network**.
+*   The Duckiebot's `robot_vlm_client_node.py` (or its launch file) must be configured with your laptop's correct IP address to send images to this server.
+*   The `parse_vlm_output_to_command` function within `laptop_vlm_server.py` is crucial for translating the VLM's text into robot commands. You may need to adjust its logic based on the specific VLM you use and the prompts you design.

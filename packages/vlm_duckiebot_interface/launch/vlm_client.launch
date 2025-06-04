@@ -1,0 +1,72 @@
+<launch>
+    <arg name="veh" default="$(env VEHICLE_NAME)" doc="Name of the vehicle"/>
+    <arg name="laptop_ip" default="192.168.1.100" doc="IP address of the VLM processing laptop"/>
+    <arg name="laptop_port" default="5000" doc="Port of the VLM processing server"/>
+    <arg name="send_interval" default="1.0" doc="Interval between image transmissions (seconds)"/>
+    <arg name="image_quality" default="85" doc="JPEG compression quality (0-100)"/>
+    <arg name="base_linear_speed" default="0.2" doc="Base linear speed for movement"/>
+    <arg name="base_angular_speed" default="0.8" doc="Base angular speed for turning"/>
+    
+    <!-- New parameters inspired by the video analysis -->
+    <arg name="fast_mode" default="true" doc="Enable fast mode for simple commands (true/false)"/>
+    <arg name="mission" default="explore" doc="Initial mission: explore, find_books, find_friends, navigate, clean"/>
+    <arg name="adaptive_interval" default="true" doc="Automatically adjust send interval based on performance"/>
+    
+    <group ns="$(arg veh)">
+        <node pkg="vlm_duckiebot_interface" type="robot_vlm_client_node.py" name="robot_vlm_client_node" output="screen">
+            <!-- VLM Server Configuration -->
+            <param name="laptop_ip" value="$(arg laptop_ip)"/>
+            <param name="laptop_port" value="$(arg laptop_port)"/>
+            <param name="veh" value="$(arg veh)"/>
+            
+            <!-- Performance Parameters (inspired by video insights) -->
+            <param name="fast_mode" value="$(arg fast_mode)"/>
+            <param name="mission" value="$(arg mission)"/>
+            <param name="adaptive_interval" value="$(arg adaptive_interval)"/>
+            
+            <!-- Image Processing Parameters -->
+            <param name="send_interval" value="$(arg send_interval)"/>
+            <param name="image_quality" value="$(arg image_quality)"/>
+            <rosparam param="image_resolution">[320, 240]</rosparam>
+            
+            <!-- Motion Parameters -->
+            <param name="base_linear_speed" value="$(arg base_linear_speed)"/>
+            <param name="base_angular_speed" value="$(arg base_angular_speed)"/>
+        </node>
+    </group>
+
+    <!-- 
+        Usage Examples (Updated with new features):
+        
+        1. Basic launch with fast mode (default):
+           roslaunch vlm_duckiebot_interface vlm_client.launch veh:=duckiebot01 laptop_ip:=192.168.1.150
+        
+        2. Launch in detailed mode for complex reasoning:
+           roslaunch vlm_duckiebot_interface vlm_client.launch veh:=duckiebot01 laptop_ip:=192.168.1.150 fast_mode:=false
+        
+        3. Launch with specific mission:
+           roslaunch vlm_duckiebot_interface vlm_client.launch veh:=duckiebot01 laptop_ip:=192.168.1.150 mission:=find_books
+        
+        4. Launch for high-performance exploration:
+           roslaunch vlm_duckiebot_interface vlm_client.launch veh:=duckiebot01 laptop_ip:=192.168.1.150 fast_mode:=true send_interval:=0.5
+        
+        5. To switch to VLM mode:
+           rostopic pub /duckiebot01/operation_mode std_msgs/String "data: 'vlm'" --once
+        
+        6. To change mission dynamically:
+           rostopic pub /duckiebot01/vlm_mission std_msgs/String "data: 'find_friends'" --once
+        
+        7. Available missions:
+           - explore: General safe exploration (default)
+           - find_books: Look for books and text objects
+           - find_friends: Search for other robots or friendly objects  
+           - navigate: Efficient navigation through space
+           - clean: Look for cluttered areas to organize
+        
+        Performance Notes (based on video analysis):
+        - Fast mode achieves >1 FPS processing (similar to RTX 4060 in video)
+        - Adaptive interval automatically optimizes send rate based on VLM response time
+        - Fast mode uses simplified prompts for quicker processing
+        - Detailed mode provides reasoning explanations for complex scenarios
+    -->
+</launch>
