@@ -101,8 +101,8 @@ ollama list
 
 #### **Install Dependencies and Start Server**
 ```bash
-# Navigate to project directory
-cd /path/to/AutoDuck
+# Navigate to VLM server directory
+cd /path/to/AutoDuck/vlm_server
 
 # Install Python dependencies
 pip3 install fastapi uvicorn ollama Pillow pydantic jinja2 requests
@@ -145,6 +145,9 @@ roslaunch vlm_duckiebot_interface vlm_client.launch \
 
 ### **🚗 4. Activate Enhanced Autonomous Vehicle Mode**
 ```bash
+# Navigate to VLM server directory
+cd vlm_server
+
 # Quick setup with Gemma 3 and autonomous vehicle prompts
 python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --gemma3
 
@@ -229,7 +232,8 @@ curl -X POST "http://YOUR_LAPTOP_IP:5000/switch_model" \
   -H "Content-Type: application/json" \
   -d '{"model": "gemma3-4b"}'
 
-# Switch missions dynamically
+# Switch missions dynamically (from vlm_server directory)
+cd vlm_server
 python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --mission find_books
 python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --mission explore
 ```
@@ -243,7 +247,8 @@ python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --mission explore
 curl "http://YOUR_LAPTOP_IP:5000/performance" | python3 -m json.tool
 curl "http://YOUR_LAPTOP_IP:5000/available_models"
 
-# Mission control utility
+# Mission control utility (from vlm_server directory)
+cd vlm_server
 python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --models --stats
 ```
 
@@ -256,14 +261,23 @@ rostopic pub /$DUCKIEBOT_NAME/operation_mode std_msgs/String "data: 'vlm'" --onc
 rostopic pub /$DUCKIEBOT_NAME/operation_mode std_msgs/String "data: 'map'" --once
 ```
 
-## 📁 **Project Structure**
+## 📁 **Project Structure** (REORGANIZED)
 ```
 AutoDuck/
 ├── 📋 README.md                          # This comprehensive guide
-├── 🛠️ VLM_DUAL_MODE_SETUP_GUIDE.md       # Detailed technical setup guide
-├── 🚗 laptop_vlm_server.py               # Enhanced multi-model VLM server
-├── 🎮 vlm_mission_control.py             # Mission control utility
-├── 🧪 test_autonomous_prompts.py         # Autonomous vehicle prompt testing
+├── 🚗 vlm_server/                        # VLM Server Components (NEW)
+│   ├── laptop_vlm_server.py              # Enhanced multi-model VLM server
+│   ├── vlm_mission_control.py            # Mission control utility
+│   ├── test_autonomous_prompts.py        # Autonomous vehicle prompt testing
+│   ├── templates/index.html              # Web monitoring interface
+│   ├── index.html                        # Standalone web interface
+│   └── README.md                         # VLM server documentation
+├── 📚 docs/                              # Documentation (NEW)
+│   ├── VLM_DUAL_MODE_SETUP_GUIDE.md      # Detailed technical setup guide
+│   ├── subs.txt                          # YouTube video transcript
+│   ├── Final_Report.pdf                  # Project report
+│   ├── LICENSE.pdf                       # License documentation
+│   └── safe_Nav_Presentation.pdf         # Presentation materials
 ├── 🏗️ packages/                          # Core ROS packages
 │   ├── lane_control/                      # PID lane following controller
 │   ├── object_detection/                  # YOLOv11-based detection
@@ -271,10 +285,10 @@ AutoDuck/
 │   ├── lane_filter/                       # Position/orientation estimation
 │   ├── apriltag/                         # Intersection sign detection
 │   └── [other packages]/                 # Complete navigation pipeline
-├── 🖥️ index.html                          # Web monitoring interface
 ├── 🐳 Dockerfile                          # Container configuration
-├── 📦 dependencies-py3.txt               # Python requirements
-└── 🎯 assets/                            # Models, configs, and resources
+├── 📦 dependencies-py3.txt               # Python requirements (DuckieBot)
+├── 🎯 assets/                            # Models, configs, and resources
+└── 🔧 launchers/                         # Launch scripts
 ```
 
 ## 🔍 **Object Detection Capabilities**
@@ -319,7 +333,8 @@ curl "http://YOUR_LAPTOP_IP:5000/performance"
 
 #### **Enhanced Prompts Not Working**
 ```bash
-# Test autonomous vehicle prompts
+# Test autonomous vehicle prompts (from vlm_server directory)
+cd vlm_server
 python3 test_autonomous_prompts.py
 
 # Check for enhanced logging
@@ -329,8 +344,9 @@ tail -f /var/log/vlm_server.log | grep -i "autonomous decision"
 ## 📚 **Documentation**
 
 - **📋 README.md** (this file): Complete project overview and quick start
-- **🛠️ VLM_DUAL_MODE_SETUP_GUIDE.md**: Comprehensive technical setup guide
-- **🧪 test_autonomous_prompts.py**: Test and compare prompt improvements
+- **📚 docs/VLM_DUAL_MODE_SETUP_GUIDE.md**: Comprehensive technical setup guide
+- **🚗 vlm_server/README.md**: VLM server components documentation
+- **🧪 vlm_server/test_autonomous_prompts.py**: Test and compare prompt improvements
 - **🖥️ Web Interface**: Real-time monitoring at `http://YOUR_LAPTOP_IP:5000`
 
 ## 🔒 **Safety Features**
@@ -356,7 +372,7 @@ tail -f /var/log/vlm_server.log | grep -i "autonomous decision"
 ```bash
 # Setup
 ollama pull gemma3:4b-instruct
-python3 laptop_vlm_server.py
+cd vlm_server && python3 laptop_vlm_server.py
 
 # Deploy
 dts devel build -f -H $DUCKIEBOT_NAME
@@ -367,6 +383,7 @@ roslaunch duckietown_demos master.launch veh:=$DUCKIEBOT_NAME lane_following:=tr
 roslaunch vlm_duckiebot_interface vlm_client.launch veh:=$DUCKIEBOT_NAME laptop_ip:=$LAPTOP_IP
 
 # Activate Enhanced Autonomous Mode
+cd vlm_server
 python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --gemma3
 python3 test_autonomous_prompts.py
 ```
@@ -375,4 +392,4 @@ python3 test_autonomous_prompts.py
 
 **🎉 Ready to experience autonomous vehicle AI with >1 FPS performance!** 
 
-For detailed technical setup instructions, see **[VLM_DUAL_MODE_SETUP_GUIDE.md](VLM_DUAL_MODE_SETUP_GUIDE.md)**
+For detailed technical setup instructions, see **[docs/VLM_DUAL_MODE_SETUP_GUIDE.md](docs/VLM_DUAL_MODE_SETUP_GUIDE.md)**
