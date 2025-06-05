@@ -1,6 +1,6 @@
 # AutoDuck - Dual-Mode Autonomous Navigation System
 
-**🚗 Enhanced with Autonomous Vehicle AI Brain | 🤖 Powered by Gemma3 & LLaVA | 🎯 Achieving >1 FPS Performance**
+**🚗 Enhanced with Autonomous Vehicle AI Brain | 🤖 Powered by Gemma3:4b Only | 🎯 Achieving >1.5 FPS Performance**
 
 ## 🎯 **Project Overview**
 
@@ -19,10 +19,10 @@ AutoDuck is a **dual-mode DuckieBot autonomous navigation system** that combines
 - **Vehicle Detection**: Recognition of other DuckieBots and traffic
 
 ### **🤖 VLM Exploration Mode (AI-Powered)**
-- **Vision Language Models**: Gemma 3 4B/12B and LLaVA 7B via Ollama
+- **Vision Language Model**: Gemma3:4b via Ollama (single optimized model)
 - **Autonomous Vehicle Prompts**: Professional driving decision-making system
-- **Real-time Processing**: >1.5 FPS with Gemma 3 (matches video performance)
-- **Dynamic Model Switching**: Switch between models without restart
+- **Real-time Processing**: >1.5 FPS with Gemma3:4b (exceeds video performance)
+- **Mission Control**: Switch between 5 autonomous missions instantly
 - **Safe Operation**: Automatic fallback and emergency stopping
 - **Web Monitoring**: Real-time VLM decision monitoring interface
 
@@ -51,9 +51,8 @@ graph TB
     end
     
     subgraph "Laptop (RTX 4060)"
-        VS[Multi-Model VLM Server]
-        G3[Gemma 3 4B/12B]
-        LV[LLaVA 7B/13B]
+        VS[Single Model VLM Server]
+            G3[Gemma3:4b Only]
         GUI[Web GUI Monitor]
         PERF[Performance Monitor]
     end
@@ -87,13 +86,8 @@ graph TB
 # Install Ollama
 curl -fsSL https://ollama.ai/install.sh | sh
 
-# Pull Gemma 3 models (recommended for best performance)
-ollama pull gemma3:4b-instruct   # Recommended for RTX 4060
-ollama pull gemma3:12b-instruct  # For RTX 4070+ (optional)
-
-# Pull LLaVA models (for comparison/fallback)
-ollama pull llava:7b-v1.6        # Original model from video
-ollama pull llava:13b-v1.6       # Larger LLaVA (optional)
+# Pull Gemma3:4b model (single optimized model)
+ollama pull gemma3:4b-instruct   # Fast performance on RTX 4060
 
 # Verify models
 ollama list
@@ -107,13 +101,13 @@ cd /path/to/AutoDuck/vlm_server
 # Install Python dependencies
 pip3 install fastapi uvicorn ollama Pillow pydantic jinja2 requests
 
-# Start enhanced multi-model VLM server
+# Start enhanced single-model VLM server
 python3 laptop_vlm_server.py
 
 # Expected output:
 # Starting Enhanced Duckiebot VLM Bridge Server with Gemma 3 Support...
 # Default Model: gemma3-4b (gemma3:4b-instruct)
-# Features: Fast Mode, Mission Control, Performance Monitoring, Multi-Model Support
+# Features: Fast Mode, Mission Control, Performance Monitoring, Gemma3:4b Single Model
 ```
 
 ### **🤖 2. Build and Deploy to DuckieBot**
@@ -162,20 +156,21 @@ python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --monitor 60
 # "Driving analysis: Action=forward, Speed=0.35, Reasoning='Clear path ahead...'"
 ```
 
-## 🆚 **Model Comparison & Performance**
+## 🆚 **Gemma3:4b Performance**
 
-| Feature | LLaVA 7B | Gemma 3 4B | Gemma 3 12B |
-|---------|----------|------------|-------------|
-| **Performance** | Baseline | **Better than Gemma-2-27B** | **Beats Gemini 1.5-Pro** |
-| **Speed (RTX 4060)** | 1-2 FPS | **1.5-3 FPS** | **1-2 FPS** |
-| **VRAM Usage** | ~6GB | **~4GB** | **~8GB** |
-| **Context Length** | 8k tokens | **128k tokens** | **128k tokens** |
-| **Instruction Following** | Good | **Excellent** | **Excellent** |
+| Feature | Specification |
+|---------|---------------|
+| **Performance** | Better than Gemma-2-27B, competitive with larger models |
+| **Speed (RTX 4060)** | **1.5-3 FPS** (consistent, no switching overhead) |
+| **VRAM Usage** | **~4GB** (efficient memory usage) |
+| **Context Length** | **128k tokens** (excellent context understanding) |
+| **Instruction Following** | **Excellent** (automotive-optimized prompts) |
 
-### **🏆 Recommended Setup:**
-- **RTX 4060/4070**: Gemma 3 4B (best balance of speed and accuracy)
-- **RTX 4070+/4080**: Gemma 3 12B (maximum accuracy)
-- **Lower VRAM**: Keep LLaVA 7B as fallback
+### **🏆 Why Single Model:**
+- **Consistent Performance**: No model switching delays
+- **Simplified Setup**: One model, one configuration
+- **Optimized Experience**: Tuned specifically for autonomous navigation
+- **Reliable Operation**: Predictable behavior and response times
 
 ## 🚗 **Enhanced Autonomous Vehicle Features**
 
@@ -216,8 +211,7 @@ Speed adapts based on VLM reasoning:
 
 | Component | Performance | Notes |
 |-----------|-------------|-------|
-| **VLM Processing (Gemma 3)** | 1.5-3 FPS | Exceeds video benchmarks |
-| **VLM Processing (LLaVA)** | 1-2 FPS | Matches video performance |
+| **VLM Processing (Gemma3:4b)** | 1.5-3 FPS | Single model, exceeds benchmarks |
 | **Object Detection** | 5-10 FPS | YOLOv11 on Jetson Nano |
 | **Lane Following** | 30 FPS | Real-time PID control |
 | **Mode Switching** | < 1 second | Instant transition |
@@ -225,15 +219,13 @@ Speed adapts based on VLM reasoning:
 
 ## 🔧 **Advanced Usage**
 
-### **Dynamic Model Switching**
+### **Mission Control**
 ```bash
-# Switch models without restart
-curl -X POST "http://YOUR_LAPTOP_IP:5000/switch_model" \
-  -H "Content-Type: application/json" \
-  -d '{"model": "gemma3-4b"}'
-
-# Switch missions dynamically (from vlm_server directory)
+# Quick autonomous exploration
 cd vlm_server
+python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --fast
+
+# Switch missions dynamically
 python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --mission find_books
 python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --mission explore
 ```
@@ -245,11 +237,11 @@ python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --mission explore
 
 # API monitoring
 curl "http://YOUR_LAPTOP_IP:5000/performance" | python3 -m json.tool
-curl "http://YOUR_LAPTOP_IP:5000/available_models"
+curl "http://YOUR_LAPTOP_IP:5000/status"
 
 # Mission control utility (from vlm_server directory)
 cd vlm_server
-python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --models --stats
+python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --stats --monitor 30
 ```
 
 ### **Operation Mode Switching**
@@ -266,7 +258,7 @@ rostopic pub /$DUCKIEBOT_NAME/operation_mode std_msgs/String "data: 'map'" --onc
 AutoDuck/
 ├── 📋 README.md                          # This comprehensive guide
 ├── 🚗 vlm_server/                        # VLM Server Components (NEW)
-│   ├── laptop_vlm_server.py              # Enhanced multi-model VLM server
+│   ├── laptop_vlm_server.py              # Enhanced single-model VLM server
 │   ├── vlm_mission_control.py            # Mission control utility
 │   ├── test_autonomous_prompts.py        # Autonomous vehicle prompt testing
 │   ├── templates/index.html              # Web monitoring interface
@@ -318,7 +310,7 @@ nvidia-smi
 python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --stats
 
 # Switch to faster model
-python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --model gemma3-4b
+python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --fast
 ```
 
 #### **Network Issues**
@@ -360,9 +352,9 @@ tail -f /var/log/vlm_server.log | grep -i "autonomous decision"
 
 ## 🎯 **Performance Goals Achieved**
 
-✅ **>1.5 FPS with Gemma 3** (exceeds YouTube video benchmark)  
+✅ **>1.5 FPS with Gemma3:4b** (exceeds YouTube video benchmark)  
 ✅ **Professional autonomous vehicle decision-making**  
-✅ **Dynamic model switching without restart**  
+✅ **Single model simplicity** (no switching overhead)  
 ✅ **Enhanced command parsing and speed control**  
 ✅ **Real-time performance monitoring**  
 ✅ **Comprehensive safety systems**  
@@ -384,7 +376,7 @@ roslaunch vlm_duckiebot_interface vlm_client.launch veh:=$DUCKIEBOT_NAME laptop_
 
 # Activate Enhanced Autonomous Mode
 cd vlm_server
-python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --gemma3
+python3 vlm_mission_control.py --robot $DUCKIEBOT_NAME --fast
 python3 test_autonomous_prompts.py
 ```
 
@@ -393,3 +385,108 @@ python3 test_autonomous_prompts.py
 **🎉 Ready to experience autonomous vehicle AI with >1 FPS performance!** 
 
 For detailed technical setup instructions, see **[docs/VLM_DUAL_MODE_SETUP_GUIDE.md](docs/VLM_DUAL_MODE_SETUP_GUIDE.md)**
+
+## 🎯 **Dashboard Integration Complete!**
+
+Yes, we absolutely **can** integrate a VLM/Map mode toggle switch into the [Duckietown Dashboard](https://docs.duckietown.com/daffy/opmanual-duckiebot/operations/dashboard/index.html)! I've created a complete solution:
+
+### 📦 **What I've Built:**
+
+1. **🎛️ AutoDuck Dashboard Widget** (`vlm_server/autoduck_dashboard_widget.js`)
+   - Beautiful animated toggle switch (MAP ↔ VLM)
+   - Real-time performance monitoring (FPS, status, model)
+   - Mission selector dropdown for VLM mode
+   - Quick action buttons (🚀 Fast Explore, 📚 Find Books, 🤖 Find Friends)
+   - Toast notifications for user feedback
+
+2. **📚 Complete Integration Guide** (`docs/DASHBOARD_INTEGRATION_GUIDE.md`)
+   - 3 installation methods (Direct, Browser Extension, Bookmarklet)
+   - Step-by-step deployment instructions
+   - API integration details
+   - Troubleshooting guide
+
+3. **🧪 Live Demo Page** (`/dashboard_demo`)
+   - Test the widget in a simulated dashboard environment
+   - Mock ROS APIs for safe testing
+   - Visual integration preview
+
+### 🌟 **Key Features:**
+
+**🎨 Beautiful UI Design:**
+```
+┌─────────────────────────────────────────┐
+│         🤖 AutoDuck Mode Control        │
+├─────────────────────────────────────────┤
+│   [MAP Mode] ←→ [VLM Mode]              │
+│                                         │
+│   Current: VLM Mode ✅                  │
+│   Model: gemma3-4b | FPS: 1.8          │
+│   Status: Ready                         │
+│                                         │
+│   Mission: [Explore    ▼]               │
+│   [🚀 Fast Explore] [📚 Books] [🤖 Friends] │
+└─────────────────────────────────────────┘
+```
+
+**⚡ Technical Integration:**
+- ROS topic communication: `/duckiebot01/operation_mode`
+- VLM server API calls: `/set_mission`, `/performance`
+- Real-time status polling every 2 seconds
+- Mobile-responsive design
+- CORS-enabled for cross-origin requests
+
+### 🚀 **Testing the Integration:**
+
+You can test this right now:
+
+1. **Start VLM Server** (if not already running):
+```bash
+cd vlm_server
+python laptop_vlm_server.py --fast
+```
+
+2. **Visit Demo Page**:
+```
+http://localhost:5000/dashboard_demo
+```
+
+3. **Test Widget Features**:
+   - Toggle between MAP and VLM modes
+   - Select different missions
+   - Watch performance metrics update
+   - Try quick action buttons
+
+### 🔧 **Real Dashboard Integration:**
+
+To integrate with actual Duckietown Dashboard:
+
+**Method 1: Direct Integration**
+```bash
+# Copy widget to dashboard assets
+scp vlm_server/autoduck_dashboard_widget.js duckie@duckiebot01.local:/dashboard/assets/js/
+
+# Add to Mission Control HTML template
+<script src="/assets/js/autoduck_dashboard_widget.js"></script>
+```
+
+**Method 2: Bookmarklet (Quick Test)**
+```javascript
+javascript:(function(){
+    const script = document.createElement('script');
+    script.src = 'http://LAPTOP_IP:5000/static/autoduck_dashboard_widget.js';
+    document.head.appendChild(script);
+})();
+```
+
+### 🎯 **Benefits:**
+
+✅ **Seamless UX**: No separate interfaces - everything in one dashboard  
+✅ **Real-time Control**: Instant mode switching with visual feedback  
+✅ **Performance Monitoring**: Live FPS and status indicators  
+✅ **Mission Management**: Easy mission selection and quick actions  
+✅ **Mobile Friendly**: Responsive design works on tablets/phones  
+✅ **Error Handling**: Graceful fallbacks and user notifications  
+
+This integration transforms the standard Duckietown Dashboard into a powerful **AutoDuck Mission Control Center** where users can seamlessly switch between traditional lane following and AI-powered autonomous navigation with just a toggle switch!
+
+**🧪 Want to test it?** Visit `http://localhost:5000/dashboard_demo` to see the widget in action!
