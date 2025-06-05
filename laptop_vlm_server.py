@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 # --- Pydantic Models ---
 class VLMProcessingRequest(BaseModel):
     image_base64: str
-    prompt: str = "Analyze this robot's camera view. What is the safest and most logical next action for a small robot to explore the area? Choose one: FORWARD, LEFT, RIGHT, or STOP."
+    prompt: str = "You are an autonomous vehicle AI. Analyze this dashcam view and make a driving decision. Choose one: FORWARD, LEFT, RIGHT, or STOP. Prioritize safety."
     fast_mode: bool = False  # Enable fast mode for simple commands only
     model: str = DEFAULT_MODEL  # NEW: Allow model selection
 
@@ -89,68 +89,101 @@ except Exception as e:
     ollama_client = None
 
 def get_optimized_prompt(fast_mode: bool = False, mission: str = "explore", model_type: str = DEFAULT_MODEL) -> str:
-    """Generate optimized prompts based on mode, mission, and model type"""
+    """Generate optimized prompts based on mode, mission, and model type for autonomous vehicle control"""
     
-    # Gemma 3 optimized prompts (better at following instructions)
+    # Gemma 3 optimized prompts (designed for autonomous vehicle brain)
     if model_type.startswith("gemma3"):
         if fast_mode:
             return (
                 f"<image>\n"
-                f"You are controlling a small autonomous robot. Mission: {mission}.\n"
-                f"Analyze this camera image and respond with ONLY ONE WORD: FORWARD, LEFT, RIGHT, or STOP.\n"
-                f"Choose the safest path to avoid obstacles and continue the mission."
+                f"You are the autonomous driving brain of a small robot car. Your mission: {mission}.\n"
+                f"CRITICAL: Analyze this dashcam view and make a driving decision.\n"
+                f"RESPOND WITH ONLY ONE WORD: FORWARD, LEFT, RIGHT, or STOP.\n"
+                f"DECISION RULES:\n"
+                f"- FORWARD: Clear path ahead, safe to continue straight\n"
+                f"- LEFT: Turn left to avoid obstacles or follow road/lane markings\n"
+                f"- RIGHT: Turn right to avoid obstacles or follow road/lane markings\n"
+                f"- STOP: Obstacle detected, unsafe conditions, or need to stop\n"
+                f"Choose the SAFEST option for autonomous navigation."
             )
         else:
             return (
                 f"<image>\n"
-                f"You are an autonomous robot with mission: {mission}.\n"
-                f"Analyze this camera view carefully. Consider obstacles, paths, objects of interest, and safety.\n"
-                f"Decide your next action (FORWARD, LEFT, RIGHT, or STOP) and explain your reasoning.\n"
-                f"Be curious but prioritize safety above all."
+                f"You are the autonomous driving system of a robot vehicle. Mission: {mission}.\n"
+                f"Analyze this camera feed as an autonomous car would:\n"
+                f"1. Scan for obstacles (people, objects, walls, other vehicles)\n"
+                f"2. Identify navigable paths and lanes\n"
+                f"3. Assess safety and clearance distances\n"
+                f"4. Consider mission objectives\n"
+                f"5. Make driving decision: FORWARD, LEFT, RIGHT, or STOP\n"
+                f"AUTONOMOUS DRIVING LOGIC:\n"
+                f"- FORWARD: Path clear, lane following possible, safe distance maintained\n"
+                f"- LEFT: Left turn required for navigation, obstacle avoidance, or lane change\n"
+                f"- RIGHT: Right turn required for navigation, obstacle avoidance, or lane change\n"
+                f"- STOP: Immediate hazard, insufficient clearance, or safety protocol\n"
+                f"Provide your driving decision and brief reasoning like a car's AI brain."
             )
     
-    # LLaVA prompts (original format)
+    # LLaVA prompts (autonomous vehicle focused)
     else:
         if fast_mode:
             return (
-                f"You are controlling a small robot. Look at this image and decide the next move. "
+                f"You are an autonomous car's AI brain controlling a small robot vehicle. "
                 f"Mission: {mission}. "
-                f"Respond with only ONE WORD: FORWARD, LEFT, RIGHT, or STOP. "
-                f"Choose the safest option to avoid obstacles."
+                f"Analyze this dashcam image and make a driving decision. "
+                f"RESPOND WITH ONLY ONE WORD: FORWARD, LEFT, RIGHT, or STOP. "
+                f"DRIVING RULES: FORWARD=clear path, LEFT=turn left, RIGHT=turn right, STOP=danger/obstacle. "
+                f"Prioritize safety like a real autonomous vehicle."
             )
         else:
             return (
-                f"You are an autonomous robot explorer with the mission to {mission}. "
-                f"Analyze this camera view and decide your next action. "
-                f"Consider: obstacles, clear paths, interesting objects, and safety. "
-                f"Respond with your decision (FORWARD, LEFT, RIGHT, or STOP) and briefly explain your reasoning. "
-                f"Be curious but prioritize safety."
+                f"You are the autonomous driving brain of a robot vehicle with mission: {mission}. "
+                f"Analyze this camera view like a self-driving car's AI system. "
+                f"Consider: road/lane conditions, obstacles, clearance distances, navigation paths. "
+                f"Make a driving decision (FORWARD, LEFT, RIGHT, or STOP) with reasoning. "
+                f"AUTONOMOUS VEHICLE DECISION LOGIC: "
+                f"FORWARD=safe straight path, LEFT=left navigation/avoidance, RIGHT=right navigation/avoidance, STOP=hazard/safety. "
+                f"Act like a professional autonomous vehicle AI with safety as top priority."
             )
 
 def parse_vlm_output_to_command(vlm_text_output: str, fast_mode: bool = False, model_type: str = DEFAULT_MODEL) -> tuple[str, str]:
-    """Enhanced parsing for both fast and detailed modes across different models"""
+    """Enhanced parsing for autonomous vehicle commands from VLM output"""
     processed_text = vlm_text_output.upper()
-    action = "stop"  # Default to safe action
+    action = "stop"  # Default to safe action for autonomous vehicle
     
-    # Primary action detection (works for both Gemma 3 and LLaVA)
-    if "FORWARD" in processed_text or "STRAIGHT" in processed_text or "AHEAD" in processed_text:
+    # Enhanced automotive command detection with autonomous vehicle terminology
+    if any(keyword in processed_text for keyword in ["FORWARD", "STRAIGHT", "AHEAD", "CONTINUE", "PROCEED", "DRIVE", "GO STRAIGHT", "MOVE FORWARD"]):
         action = "forward"
-    elif "LEFT" in processed_text:
+    elif any(keyword in processed_text for keyword in ["LEFT", "TURN LEFT", "GO LEFT", "STEER LEFT", "LEFT TURN", "NAVIGATE LEFT"]):
         action = "left" 
-    elif "RIGHT" in processed_text:
+    elif any(keyword in processed_text for keyword in ["RIGHT", "TURN RIGHT", "GO RIGHT", "STEER RIGHT", "RIGHT TURN", "NAVIGATE RIGHT"]):
         action = "right"
-    elif "STOP" in processed_text or "HALT" in processed_text or "WAIT" in processed_text:
+    elif any(keyword in processed_text for keyword in ["STOP", "HALT", "WAIT", "BRAKE", "PAUSE", "EMERGENCY STOP", "FULL STOP", "HOLD"]):
         action = "stop"
     else:
-        logger.warning(f"Could not parse clear command from {model_type} output: '{vlm_text_output[:100]}...'")
-        action = "stop"  # Default to safe action
+        # Additional autonomous vehicle decision parsing
+        if any(keyword in processed_text for keyword in ["CLEAR PATH", "SAFE TO PROCEED", "NO OBSTACLES"]):
+            action = "forward"
+        elif any(keyword in processed_text for keyword in ["OBSTACLE", "BLOCKED", "DANGER", "UNSAFE", "HAZARD", "COLLISION"]):
+            action = "stop"
+        elif any(keyword in processed_text for keyword in ["AVOID", "NAVIGATE AROUND"]):
+            # If no specific direction mentioned, default to stop for safety
+            if "LEFT" in processed_text:
+                action = "left"
+            elif "RIGHT" in processed_text:
+                action = "right"
+            else:
+                action = "stop"
+        else:
+            logger.warning(f"Could not parse autonomous driving command from {model_type} output: '{vlm_text_output[:100]}...'")
+            action = "stop"  # Default to safe action for autonomous vehicle
     
     if fast_mode:
-        reasoning_snippet = f"Fast mode ({model_type}): {action.upper()}"
+        reasoning_snippet = f"Autonomous driving mode ({model_type}): {action.upper()}"
     else:
-        reasoning_snippet = f"{model_type} reasoning: {vlm_text_output[:150]}..."
+        reasoning_snippet = f"{model_type} autonomous decision: {vlm_text_output[:150]}..."
     
-    logger.info(f"{model_type} output: '{vlm_text_output[:100]}...' -> Parsed action: {action}")
+    logger.info(f"{model_type} autonomous driving output: '{vlm_text_output[:100]}...' -> Parsed action: {action}")
     return action, reasoning_snippet
 
 @app.post("/switch_model")
@@ -302,19 +335,28 @@ async def handle_image_processing(request_data: VLMProcessingRequest):
         else:
             action, reasoning = parse_vlm_output_to_command(raw_vlm_text_output, request_data.fast_mode, model_to_use)
         
-        # Dynamic speed based on action and model performance
+        # Autonomous vehicle speed control based on driving decision
         current_speed = 0.5
         if action == "stop":
-            current_speed = 0.0
+            current_speed = 0.0  # Full stop for safety
         elif action == "forward":
-            # Gemma 3 tends to be more confident, can go slightly faster
-            current_speed = 0.35 if model_to_use.startswith("gemma3") else 0.3
+            # Straight driving - higher speed for efficiency
+            if "clear" in raw_vlm_text_output.lower() or "safe" in raw_vlm_text_output.lower():
+                current_speed = 0.4 if model_to_use.startswith("gemma3") else 0.35  # Confident forward
+            else:
+                current_speed = 0.3 if model_to_use.startswith("gemma3") else 0.25  # Cautious forward
             if request_data.fast_mode:
-                current_speed += 0.05  # Slight boost for fast mode
+                current_speed += 0.05  # Fast mode boost for real-time response
         elif action in ["left", "right"]:
-            current_speed = 0.45 if model_to_use.startswith("gemma3") else 0.4
+            # Turning maneuvers - reduced speed for safety and control
+            if "sharp" in raw_vlm_text_output.lower() or "tight" in raw_vlm_text_output.lower():
+                current_speed = 0.2  # Slow for sharp turns
+            elif "avoid" in raw_vlm_text_output.lower() or "obstacle" in raw_vlm_text_output.lower():
+                current_speed = 0.25  # Cautious avoidance
+            else:
+                current_speed = 0.35 if model_to_use.startswith("gemma3") else 0.3  # Normal turning
             if request_data.fast_mode:
-                current_speed += 0.05
+                current_speed += 0.03  # Smaller boost for turns in fast mode
 
         command_response = RobotCommandResponse(
             action=action,
@@ -326,9 +368,15 @@ async def handle_image_processing(request_data: VLMProcessingRequest):
         )
         latest_data_for_gui["command_sent"] = command_response.model_dump()
         
-        # Log performance metrics
+        # Log autonomous vehicle decision metrics
         fps = 1.0 / processing_time if processing_time > 0 else 0
-        logger.info(f"Processing complete: {action.upper()} (Speed: {current_speed}, FPS: {fps:.2f}, Model: {model_to_use})")
+        logger.info(f"Autonomous Decision: {action.upper()} @ {current_speed:.2f} m/s | FPS: {fps:.2f} | Model: {model_to_use} | Mission: {mission}")
+        
+        # Additional logging for autonomous vehicle behavior analysis
+        if action != "stop":
+            logger.debug(f"Driving analysis: Action={action}, Speed={current_speed}, Reasoning='{reasoning[:50]}...'")
+        else:
+            logger.warning(f"Safety stop triggered: {reasoning[:100]}...")
         
         return command_response
 
