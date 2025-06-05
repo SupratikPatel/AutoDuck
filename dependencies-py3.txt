@@ -33,3 +33,15 @@ ipython==7.34.0
 
 # For new YOLO model
 ultralytics
+
+# VLM System Dependencies
+flask>=2.0.0
+requests>=2.25.0
+opencv-python>=4.5.0
+pillow>=8.0.0
+
+# Ollama Python client for stable VLM implementation
+ollama>=0.1.0
+
+# Additional dependencies for enhanced features
+python-dateutil

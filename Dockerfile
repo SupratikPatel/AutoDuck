@@ -53,7 +53,16 @@ RUN apt-get update && apt-get install -y \
     python3-requests \
     python3-opencv \
     python3-numpy \
+    python3-flask \
+    python3-pillow \
+    curl \
+    wget \
     && rm -rf /var/lib/apt/lists/*
+
+# VLM Server environment variables
+ENV VLM_IMPLEMENTATION="ollama"
+ENV VLM_SERVER_PORT="5000"
+ENV VLM_MODEL="gemma3:4b"
 
 # install python3 dependencies
 ARG PIP_INDEX_URL="https://pypi.org/simple/"
@@ -66,6 +75,9 @@ COPY ./assets "${REPO_PATH}/assets"
 
 # copy the source code (recipe)
 COPY ./packages "${REPO_PATH}/packages"
+
+# copy VLM server code
+COPY ./vlm_server "${REPO_PATH}/vlm_server"
 
 # build packages
 RUN . /opt/ros/${ROS_DISTRO}/setup.sh && \

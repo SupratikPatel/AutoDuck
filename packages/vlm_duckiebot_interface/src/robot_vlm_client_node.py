@@ -35,16 +35,28 @@ class RobotVLMClient:
         self.current_mission = rospy.get_param('~mission', 'explore')  # Default mission
         self.adaptive_interval = rospy.get_param('~adaptive_interval', True)  # Adapt send interval based on performance
         
-        # Configure URLs and topics
-        self.server_url = f"http://{self.laptop_ip}:{self.laptop_port}/process_image"
-        self.mission_url = f"http://{self.laptop_ip}:{self.laptop_port}/set_mission"
-        self.performance_url = f"http://{self.laptop_ip}:{self.laptop_port}/performance"
+        # Auto-detect VLM implementation
+        self.vlm_implementation = self.detect_vlm_implementation()
+        rospy.loginfo(f"Detected VLM implementation: {self.vlm_implementation}")
+        
+        # Configure URLs and topics based on implementation
+        if self.vlm_implementation == "llamacpp":
+            # Use new llama.cpp API endpoints
+            self.server_url = f"http://{self.laptop_ip}:{self.laptop_port}/api/analyze"
+            self.stats_url = f"http://{self.laptop_ip}:{self.laptop_port}/api/stats"
+            self.health_url = f"http://{self.laptop_ip}:{self.laptop_port}/api/health"
+        else:
+            # Use legacy Ollama endpoints
+            self.server_url = f"http://{self.laptop_ip}:{self.laptop_port}/process_image"
+            self.stats_url = f"http://{self.laptop_ip}:{self.laptop_port}/performance"
+            self.health_url = f"http://{self.laptop_ip}:{self.laptop_port}/status"
+        
         self.image_topic = f"/{self.veh_name}/camera_node/image/compressed"
         self.motor_topic = f"/{self.veh_name}/joy_mapper_node/car_cmd"
         self.mode_topic = f"/{self.veh_name}/operation_mode"
         
         # Image processing parameters
-        self.image_resolution = rospy.get_param('~image_resolution', [320, 240])  # [W, H]
+        self.image_resolution = rospy.get_param('~image_resolution', [640, 480])  # Updated for better performance
         self.image_quality = rospy.get_param('~image_quality', 85)  # JPEG quality
         
         # Motion parameters
@@ -77,18 +89,59 @@ class RobotVLMClient:
         # Subscriber for mission changes (new feature)
         rospy.Subscriber(f"/{self.veh_name}/vlm_mission", String, self.mission_callback)
 
-        # Initialize mission on server
-        self.set_mission(self.current_mission)
+        # Wait for VLM server to be ready
+        self.wait_for_server()
 
         rospy.loginfo(f"{NODE_NAME} started successfully")
         rospy.loginfo(f"Vehicle: {self.veh_name}")
         rospy.loginfo(f"VLM Server: {self.server_url}")
+        rospy.loginfo(f"Implementation: {self.vlm_implementation}")
         rospy.loginfo(f"Fast Mode: {'ENABLED' if self.fast_mode else 'DISABLED'}")
         rospy.loginfo(f"Mission: {self.current_mission}")
         rospy.loginfo(f"Image topic: {self.image_topic}")
         rospy.loginfo(f"Motor topic: {self.motor_topic}")
         rospy.loginfo(f"Mode topic: {self.mode_topic}")
         rospy.loginfo(f"Current mode: {self.current_mode}")
+
+    def detect_vlm_implementation(self):
+        """Auto-detect which VLM implementation is running"""
+        try:
+            # Try llamacpp endpoints first
+            response = requests.get(f"http://{self.laptop_ip}:{self.laptop_port}/api/health", timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if 'llama.cpp' in str(data).lower() or 'llamacpp' in str(data).lower():
+                    return "llamacpp"
+        except:
+            pass
+            
+        try:
+            # Try ollama endpoints
+            response = requests.get(f"http://{self.laptop_ip}:{self.laptop_port}/status", timeout=5)
+            if response.status_code == 200:
+                return "ollama"
+        except:
+            pass
+            
+        # Default to ollama for backward compatibility
+        return "ollama"
+
+    def wait_for_server(self):
+        """Wait for VLM server to be ready"""
+        rospy.loginfo("Waiting for VLM server to be ready...")
+        max_attempts = 30
+        for attempt in range(max_attempts):
+            try:
+                response = requests.get(self.health_url, timeout=2)
+                if response.status_code == 200:
+                    rospy.loginfo("✅ VLM server is ready!")
+                    return
+            except:
+                pass
+            rospy.loginfo(f"⏳ VLM server not ready, attempt {attempt + 1}/{max_attempts}")
+            time.sleep(2)
+        
+        rospy.logwarn("⚠️ VLM server may not be ready, proceeding anyway...")
 
     def operation_mode_callback(self, msg):
         if msg.data != self.current_mode:
@@ -103,24 +156,12 @@ class RobotVLMClient:
         new_mission = msg.data.lower()
         if new_mission != self.current_mission:
             self.current_mission = new_mission
-            self.set_mission(new_mission)
             rospy.loginfo(f"Mission changed to: {new_mission}")
-
-    def set_mission(self, mission):
-        """Set mission on VLM server"""
-        try:
-            response = requests.post(self.mission_url, params={"mission": mission}, timeout=5)
-            if response.status_code == 200:
-                rospy.loginfo(f"Mission '{mission}' set successfully on VLM server")
-            else:
-                rospy.logwarn(f"Failed to set mission on server: {response.status_code}")
-        except Exception as e:
-            rospy.logwarn(f"Could not set mission on server: {e}")
 
     def get_performance_stats(self):
         """Get performance statistics from VLM server"""
         try:
-            response = requests.get(self.performance_url, timeout=2)
+            response = requests.get(self.stats_url, timeout=2)
             if response.status_code == 200:
                 return response.json()
         except:
@@ -128,12 +169,16 @@ class RobotVLMClient:
         return None
 
     def update_adaptive_interval(self, processing_time):
-        """Dynamically adjust send interval based on performance (inspired by video)"""
+        """Dynamically adjust send interval based on performance"""
         if not self.adaptive_interval:
             return
             
-        # Target: maintain >1 FPS as shown in the video
-        target_fps = 1.5 if self.fast_mode else 1.0
+        # For llamacpp: target higher FPS due to better performance
+        if self.vlm_implementation == "llamacpp":
+            target_fps = 0.8  # ~1.2s intervals for real-time control
+        else:
+            target_fps = 0.3  # ~3s intervals for ollama
+            
         target_interval = 1.0 / target_fps
         
         # Add some buffer for network latency
@@ -141,7 +186,7 @@ class RobotVLMClient:
         
         # Smooth adjustment
         self.send_interval = 0.7 * self.send_interval + 0.3 * optimal_interval
-        self.send_interval = max(0.5, min(self.send_interval, 3.0))  # Clamp between 0.5-3 seconds
+        self.send_interval = max(0.5, min(self.send_interval, 5.0))  # Clamp between 0.5-5 seconds
 
     def image_callback_compressed(self, ros_image_compressed):
         if self.current_mode != "vlm":
@@ -188,144 +233,108 @@ class RobotVLMClient:
             rospy.logerr(f"Error encoding image to JPEG/Base64: {e}")
             return
 
-        # Enhanced prompt based on current mission
-        mission_prompts = {
-            'explore': "Explore the environment safely, avoiding obstacles and looking for interesting areas.",
-            'find_books': "Look for books or text objects in the environment. Move towards any books you see.",
-            'find_friends': "Search for other robots or friendly objects. Move towards potential robot friends.",
-            'navigate': "Navigate through the space efficiently while avoiding obstacles.",
-            'clean': "Look for areas that need cleaning or organizing. Move towards cluttered areas."
-        }
-        
-        base_prompt = mission_prompts.get(self.current_mission, mission_prompts['explore'])
-        
-        if self.fast_mode:
-            prompt = f"Mission: {self.current_mission}. {base_prompt} Respond with only: FORWARD, LEFT, RIGHT, or STOP."
-        else:
-            prompt = f"Mission: {self.current_mission}. {base_prompt} Explain your reasoning briefly."
-        
-        payload = {
-            "image_base64": image_base64, 
-            "prompt": prompt,
-            "fast_mode": self.fast_mode  # New parameter
-        }
-        
-        request_start_time = time.time()
-        self.performance_stats['total_requests'] += 1
+        # Create request payload based on implementation
+        start_time = time.time()
         
         try:
-            rospy.logdebug(f"Sending image to VLM server (Fast Mode: {self.fast_mode})...")
-            response = requests.post(
-                self.server_url, 
-                json=payload, 
-                timeout=15  # Increased timeout for VLM processing
-            )
-            response.raise_for_status()
+            if self.vlm_implementation == "llamacpp":
+                # New llamacpp format
+                payload = {
+                    "image_base64": image_base64
+                }
+                response = requests.post(self.server_url, json=payload, timeout=15)
+            else:
+                # Legacy ollama format  
+                payload = {
+                    "image_base64": image_base64,
+                    "fast_mode": self.fast_mode
+                }
+                response = requests.post(self.server_url, json=payload, timeout=15)
             
-            request_time = time.time() - request_start_time
-            command_data = response.json()
+            processing_time = time.time() - start_time
             
-            # Update performance statistics
-            self.performance_stats['successful_requests'] += 1
-            self.performance_stats['average_response_time'] = (
-                0.8 * self.performance_stats['average_response_time'] + 
-                0.2 * request_time
-            )
-            self.performance_stats['last_fps'] = 1.0 / request_time if request_time > 0 else 0
-            
-            # Update adaptive interval based on actual processing time
-            if 'processing_time' in command_data:
-                self.update_adaptive_interval(command_data['processing_time'])
-            
-            # Log performance info
-            fps = self.performance_stats['last_fps']
-            rospy.loginfo(f"VLM Response: {command_data.get('action', 'unknown').upper()} "
-                         f"(FPS: {fps:.2f}, Time: {request_time:.2f}s)")
-            
-            if 'reasoning' in command_data and not self.fast_mode:
-                rospy.loginfo(f"Reasoning: {command_data['reasoning']}")
-            
-            self.execute_command(command_data)
-
-        except requests.exceptions.Timeout:
-            rospy.logwarn("VLM server timeout - stopping for safety")
-            self.send_motor_command(0.0, 0.0)
-        except requests.exceptions.ConnectionError:
-            rospy.logwarn("Cannot connect to VLM server - stopping for safety")
-            self.send_motor_command(0.0, 0.0)
-        except requests.exceptions.RequestException as e:
-            rospy.logerr(f"HTTP request failed: {e}")
-            self.send_motor_command(0.0, 0.0)
-        except ValueError as e:
-            rospy.logerr(f"Could not decode JSON response: {e}")
-            self.send_motor_command(0.0, 0.0)
+            if response.status_code == 200:
+                self.performance_stats['total_requests'] += 1
+                self.performance_stats['successful_requests'] += 1
+                
+                # Update adaptive interval
+                self.update_adaptive_interval(processing_time)
+                
+                # Parse response based on implementation
+                result = response.json()
+                if self.vlm_implementation == "llamacpp":
+                    command_data = {
+                        'action': result.get('decision', 'stop').lower(),
+                        'reasoning': result.get('reasoning', ''),
+                        'processing_time': processing_time
+                    }
+                else:
+                    command_data = {
+                        'action': result.get('action', 'stop'),
+                        'reasoning': result.get('reasoning', ''),  
+                        'processing_time': processing_time
+                    }
+                
+                # Execute the command
+                self.execute_command(command_data)
+                
+                rospy.loginfo(f"🚗 {command_data['action'].upper()} | {processing_time:.2f}s | {command_data['reasoning'][:50]}...")
+                
+            else:
+                rospy.logwarn(f"VLM server responded with status {response.status_code}")
+                self.performance_stats['total_requests'] += 1
+                
         except Exception as e:
-            rospy.logerr(f"Unexpected error during VLM communication: {e}")
+            rospy.logerr(f"Error communicating with VLM server: {e}")
+            self.performance_stats['total_requests'] += 1
+            # Default to safe action
             self.send_motor_command(0.0, 0.0)
 
     def execute_command(self, command_data):
-        if self.current_mode != "vlm":
-            return
-
-        action = command_data.get("action", "stop").lower()
-        speed_multiplier = command_data.get("speed", 0.5)
-
-        linear_x = 0.0
-        angular_z = 0.0
-
+        """Execute driving command based on VLM decision"""
+        action = command_data['action']
+        
         if action == "forward":
-            linear_x = self.base_linear_speed * speed_multiplier
+            linear_x = self.base_linear_speed
+            angular_z = 0.0
         elif action == "left":
-            angular_z = self.base_angular_speed * speed_multiplier
+            linear_x = self.base_linear_speed * 0.5
+            angular_z = self.base_angular_speed
         elif action == "right":
-            angular_z = -self.base_angular_speed * speed_multiplier
+            linear_x = self.base_linear_speed * 0.5
+            angular_z = -self.base_angular_speed
         elif action == "stop":
             linear_x = 0.0
             angular_z = 0.0
         else:
-            rospy.logwarn(f"Unknown action: {action} - stopping for safety")
+            # Unknown command, default to stop
+            rospy.logwarn(f"Unknown action '{action}', defaulting to stop")
             linear_x = 0.0
             angular_z = 0.0
-
+        
         self.send_motor_command(linear_x, angular_z)
 
     def send_motor_command(self, linear_x, angular_z):
-        msg = Twist2DStamped()
-        msg.header.stamp = rospy.Time.now()
-        msg.v = linear_x  # Linear velocity
-        msg.omega = angular_z  # Angular velocity
-        
-        self.motor_pub.publish(msg)
-        if linear_x != 0 or angular_z != 0:
-            rospy.logdebug(f"Motor command: v={linear_x:.2f}, omega={angular_z:.2f}")
+        """Send motor command to robot"""
+        cmd = Twist2DStamped()
+        cmd.header.stamp = rospy.Time.now()
+        cmd.v = linear_x
+        cmd.omega = angular_z
+        self.motor_pub.publish(cmd)
 
     def print_performance_stats(self):
-        """Print performance statistics periodically"""
+        """Print performance statistics"""
         if self.performance_stats['total_requests'] > 0:
             success_rate = (self.performance_stats['successful_requests'] / 
                           self.performance_stats['total_requests']) * 100
-            
-            rospy.loginfo(f"Performance Stats - "
-                         f"Requests: {self.performance_stats['total_requests']}, "
-                         f"Success Rate: {success_rate:.1f}%, "
-                         f"Avg Response: {self.performance_stats['average_response_time']:.2f}s, "
-                         f"Current FPS: {self.performance_stats['last_fps']:.2f}, "
-                         f"Send Interval: {self.send_interval:.2f}s")
+            rospy.loginfo(f"📊 Performance: {success_rate:.1f}% success rate, "
+                         f"{self.performance_stats['total_requests']} total requests")
 
     def run(self):
-        rospy.loginfo("VLM Client ready and waiting for mode switch to 'vlm'")
-        rospy.loginfo(f"Performance Mode: {'FAST' if self.fast_mode else 'DETAILED'}")
-        
-        # Print performance stats every 30 seconds
-        last_stats_time = time.time()
-        
-        rate = rospy.Rate(1)  # 1 Hz for stats checking
+        """Main run loop"""
+        rate = rospy.Rate(0.1)  # 10 second intervals for stats
         while not rospy.is_shutdown():
-            current_time = time.time()
-            if current_time - last_stats_time > 30:  # Every 30 seconds
-                self.print_performance_stats()
-                last_stats_time = current_time
-            
+            self.print_performance_stats()
             rate.sleep()
 
 if __name__ == '__main__':
@@ -333,8 +342,4 @@ if __name__ == '__main__':
         client = RobotVLMClient()
         client.run()
     except rospy.ROSInterruptException:
-        rospy.loginfo("VLM Client node interrupted")
-    except Exception as e:
-        rospy.logerr(f"VLM Client failed to start: {e}")
-    finally:
-        rospy.loginfo("VLM Client shutting down")
+        pass
