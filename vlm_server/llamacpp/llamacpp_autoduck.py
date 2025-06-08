@@ -28,6 +28,12 @@ class LlamaCppAutoDuckVLM:
         self.last_image = None
         self.last_analysis_time = None
         
+        # Enhanced navigation with decision memory
+        self.last_decisions = []  # Track recent decisions for anti-oscillation
+        self.consecutive_stops = 0  # Count consecutive STOP decisions
+        self.obstacle_avoidance_mode = False
+        self.stats_printed_at = 0  # Track when stats were last printed
+        
         # Performance tracking
         self.stats = {
             'total_requests': 0,
@@ -136,21 +142,37 @@ class LlamaCppAutoDuckVLM:
         except Exception as e:
             print(f"❌ Cannot connect to llama.cpp server: {e}")
             print(f"   Make sure server is running:")
-            print(f"   docker run --gpus all -p 8080:8080 ghcr.io/ggml-org/llama.cpp:server-cuda -hf ggml-org/gemma-3-4b-it-GGUF --host 0.0.0.0 --port 8080")
+            print(f"   docker run --gpus all -p 8080:8080 ghcr.io/ggml-org/llama.cpp:server-cuda \\")
+            print(f"       -hf ggml-org/Qwen2.5-VL-7B-Instruct-GGUF \\")
+            print(f"       --host 0.0.0.0 --port 8080 \\")
+            print(f"       --n-gpu-layers 99 --ctx-size 1024 --batch-size 256 --threads 4 --cont-batching")
             return False
         return False
 
     def get_autonomous_prompt(self):
-        """Optimized prompt for autonomous driving decisions"""
+        """Enhanced prompt for smart obstacle avoidance navigation"""
         return (
-            "You are an autonomous robot car's vision system. Analyze this road/environment image and make a driving decision.\n\n"
-            "Rules:\n"
-            "- STOP: If you see people, obstacles, or immediate danger\n"
-            "- LEFT: For left turns, left lane changes, or avoiding right-side obstacles\n"
-            "- RIGHT: For right turns, right lane changes, or avoiding left-side obstacles\n"
-            "- FORWARD: Only if the path ahead is completely clear and safe\n\n"
-            "Respond with just the decision word (FORWARD/LEFT/RIGHT/STOP) followed by a brief reason.\n"
-            "Example: STOP - Person crossing ahead"
+            "You are an autonomous robot car's vision system. Analyze this road/environment image and make a smart driving decision.\n\n"
+            "DECISION PRIORITY RULES:\n"
+            "1. FORWARD: Only if the path ahead is completely clear and safe\n"
+            "2. LEFT: If there's an obstacle ahead but the left side looks clearer/safer\n"
+            "3. RIGHT: If there's an obstacle ahead but the right side looks clearer/safer\n"
+            "4. STOP: ONLY for immediate extreme danger (person very close, cliff, wall directly ahead)\n\n"
+            "OBSTACLE AVOIDANCE STRATEGY:\n"
+            "- If you see a static obstacle (object, barrier, parked car): Choose LEFT or RIGHT to go around it\n"
+            "- If you see a moving obstacle (person, vehicle): Choose the direction with more space\n"
+            "- If both sides are blocked: Choose the side with slightly more space\n"
+            "- If you see a clear road ahead: Choose FORWARD\n\n"
+            "AVOID GETTING STUCK:\n"
+            "- Don't choose STOP unless there's immediate danger\n"
+            "- Always try to find a way around obstacles\n"
+            "- Prefer LEFT/RIGHT over STOP for navigation\n\n"
+            "Respond with: DECISION - Brief reason\n"
+            "Examples:\n"
+            "- 'LEFT - Object ahead, left side is clearer'\n"
+            "- 'RIGHT - Person on left, more space on right'\n"
+            "- 'FORWARD - Clear road ahead'\n"
+            "- 'STOP - Person directly in front, too close'"
         )
 
     def encode_image_for_llamacpp(self, frame):
@@ -241,21 +263,78 @@ class LlamaCppAutoDuckVLM:
             return None
 
     def parse_decision(self, content):
-        """Extract decision from AI response"""
+        """Extract decision from AI response with anti-deadlock logic"""
         content_upper = content.upper()
         
         # Look for decision words
+        raw_decision = None
         if 'STOP' in content_upper:
-            return 'STOP'
+            raw_decision = 'STOP'
         elif 'LEFT' in content_upper:
-            return 'LEFT'
+            raw_decision = 'LEFT'
         elif 'RIGHT' in content_upper:
-            return 'RIGHT'
+            raw_decision = 'RIGHT'
         elif 'FORWARD' in content_upper:
-            return 'FORWARD'
+            raw_decision = 'FORWARD'
         else:
             # Default to STOP for safety
-            return 'STOP'
+            raw_decision = 'STOP'
+        
+        # Apply anti-deadlock logic
+        final_decision = self.apply_anti_deadlock_logic(raw_decision)
+        
+        # Update decision history
+        self.last_decisions.append(final_decision)
+        if len(self.last_decisions) > 5:  # Keep last 5 decisions
+            self.last_decisions = self.last_decisions[-5:]
+        
+        return final_decision
+
+    def apply_anti_deadlock_logic(self, decision):
+        """Prevent getting stuck with smart navigation logic"""
+        # Count consecutive STOPs
+        if decision == 'STOP':
+            self.consecutive_stops += 1
+        else:
+            self.consecutive_stops = 0
+        
+        # If too many consecutive STOPs, force alternative navigation
+        if self.consecutive_stops >= 3:
+            print(f"🚨 Anti-deadlock: {self.consecutive_stops} consecutive STOPs detected!")
+            
+            # Analyze recent decisions to choose best alternative
+            if len(self.last_decisions) >= 2:
+                recent = self.last_decisions[-2:]
+                # Avoid oscillation between LEFT and RIGHT
+                if 'LEFT' in recent and 'RIGHT' not in recent:
+                    print("   → Forcing RIGHT to explore new path")
+                    self.consecutive_stops = 0
+                    return 'RIGHT'
+                elif 'RIGHT' in recent and 'LEFT' not in recent:
+                    print("   → Forcing LEFT to explore new path")
+                    self.consecutive_stops = 0
+                    return 'LEFT'
+            
+            # Default: try RIGHT first, then LEFT
+            if self.consecutive_stops % 2 == 1:
+                print("   → Forcing RIGHT to bypass obstacle")
+                return 'RIGHT'
+            else:
+                print("   → Forcing LEFT to bypass obstacle")
+                return 'LEFT'
+        
+        # Check for LEFT-RIGHT oscillation
+        if len(self.last_decisions) >= 4:
+            recent_4 = self.last_decisions[-4:]
+            left_count = recent_4.count('LEFT')
+            right_count = recent_4.count('RIGHT')
+            
+            # If oscillating between LEFT and RIGHT, try FORWARD
+            if left_count >= 2 and right_count >= 2:
+                print("🔄 Anti-oscillation: Detected LEFT-RIGHT oscillation, trying FORWARD")
+                return 'FORWARD'
+        
+        return decision
 
     def update_stats(self, response_time, decision, success):
         """Update performance statistics"""
@@ -375,9 +454,12 @@ class LlamaCppAutoDuckVLM:
                 self.add_overlay(display_frame)
                 cv2.imshow('Ultra-Fast AutoDuck VLM', display_frame)
                 
-                # Print stats every 10 successful requests
-                if self.stats['successful_requests'] > 0 and self.stats['successful_requests'] % 10 == 0:
+                # Print stats every 10 successful requests (but only once per milestone)
+                if (self.stats['successful_requests'] > 0 and 
+                    self.stats['successful_requests'] % 10 == 0 and
+                    self.stats['successful_requests'] > self.stats_printed_at):
                     self.print_stats()
+                    self.stats_printed_at = self.stats['successful_requests']
                     
         except KeyboardInterrupt:
             pass
@@ -394,22 +476,87 @@ class LlamaCppAutoDuckVLM:
         self.processing = False
 
     def cleanup(self):
-        """Clean up resources"""
+        """Clean up resources and show final summary"""
         print("\n🛑 Shutting down...")
         self.running = False
+        
+        # Show final comprehensive summary
+        self.print_final_summary()
+        
         if self.cap:
             self.cap.release()
         cv2.destroyAllWindows()
 
     def print_stats(self):
-        """Print performance statistics"""
-        print(f"\n📊 Performance Stats:")
-        print(f"   🎯 Total Requests: {self.stats['total_requests']}")
+        """Print current performance statistics"""
+        print(f"\n📊 Performance Checkpoint (Request #{self.stats['successful_requests']}):")
         print(f"   ✅ Success Rate: {self.stats['successful_requests']}/{self.stats['total_requests']} ({100*self.stats['successful_requests']/max(1,self.stats['total_requests']):.1f}%)")
         print(f"   ⚡ Avg Response: {self.stats['avg_response_time']:.2f}s")
-        print(f"   🏆 Best Response: {self.stats['best_response_time']:.2f}s")
         print(f"   📈 Current FPS: {self.stats['current_fps']:.2f}")
-        print(f"   🎮 Decisions: {self.stats['decisions']}")
+        print(f"   🎮 Recent Decisions: {self.last_decisions[-3:] if len(self.last_decisions) >= 3 else self.last_decisions}")
+
+    def print_final_summary(self):
+        """Print comprehensive final summary when quitting"""
+        print("\n" + "="*60)
+        print("🏁 FINAL AUTODUCK VLM SESSION SUMMARY")
+        print("="*60)
+        
+        # Performance Overview
+        print(f"\n📊 PERFORMANCE OVERVIEW:")
+        print(f"   🎯 Total Requests: {self.stats['total_requests']}")
+        print(f"   ✅ Successful: {self.stats['successful_requests']}")
+        print(f"   ❌ Failed: {self.stats['failed_requests']}")
+        success_rate = 100*self.stats['successful_requests']/max(1,self.stats['total_requests'])
+        print(f"   📈 Success Rate: {success_rate:.1f}%")
+        
+        # Response Time Analysis
+        print(f"\n⚡ RESPONSE TIME ANALYSIS:")
+        print(f"   🎯 Average: {self.stats['avg_response_time']:.2f}s")
+        print(f"   🏆 Best: {self.stats['best_response_time']:.2f}s")
+        print(f"   📉 Worst: {self.stats['worst_response_time']:.2f}s")
+        print(f"   🚀 Best FPS: {self.stats['best_fps']:.2f}")
+        
+        # Decision Analysis
+        total_decisions = sum(self.stats['decisions'].values())
+        print(f"\n🎮 NAVIGATION DECISION ANALYSIS:")
+        for decision, count in self.stats['decisions'].items():
+            percentage = 100 * count / max(1, total_decisions)
+            print(f"   {decision}: {count} ({percentage:.1f}%)")
+        
+        # Navigation Quality Assessment
+        print(f"\n🧭 NAVIGATION QUALITY ASSESSMENT:")
+        stop_percentage = 100 * self.stats['decisions']['STOP'] / max(1, total_decisions)
+        if stop_percentage > 60:
+            print(f"   ⚠️  High STOP rate ({stop_percentage:.1f}%) - Consider obstacle avoidance improvements")
+        elif stop_percentage > 30:
+            print(f"   ⚡ Moderate STOP rate ({stop_percentage:.1f}%) - Good safety balance")
+        else:
+            print(f"   🎯 Low STOP rate ({stop_percentage:.1f}%) - Excellent navigation flow")
+        
+        # Anti-deadlock Performance
+        forward_percentage = 100 * self.stats['decisions']['FORWARD'] / max(1, total_decisions)
+        maneuver_percentage = 100 * (self.stats['decisions']['LEFT'] + self.stats['decisions']['RIGHT']) / max(1, total_decisions)
+        print(f"   🚗 Movement: {forward_percentage:.1f}% forward, {maneuver_percentage:.1f}% maneuvering")
+        
+        # Recent Decision Pattern
+        if len(self.last_decisions) >= 5:
+            print(f"   🔄 Final 5 decisions: {' → '.join(self.last_decisions[-5:])}")
+        
+        # Performance Rating
+        avg_fps = 1.0 / self.stats['avg_response_time'] if self.stats['avg_response_time'] > 0 else 0
+        print(f"\n🏆 OVERALL PERFORMANCE RATING:")
+        if avg_fps >= 1.5:
+            print(f"   🥇 EXCELLENT (>{avg_fps:.1f} FPS) - Real-time capable!")
+        elif avg_fps >= 1.0:
+            print(f"   🥈 GOOD ({avg_fps:.1f} FPS) - Near real-time performance")
+        elif avg_fps >= 0.5:
+            print(f"   🥉 FAIR ({avg_fps:.1f} FPS) - Acceptable for testing")
+        else:
+            print(f"   ⚠️  NEEDS IMPROVEMENT ({avg_fps:.1f} FPS) - Consider optimization")
+        
+        print("\n" + "="*60)
+        print("Thank you for using AutoDuck VLM! 🦆🤖")
+        print("="*60)
 
     def run_dashboard(self):
         """Run the web dashboard server"""
