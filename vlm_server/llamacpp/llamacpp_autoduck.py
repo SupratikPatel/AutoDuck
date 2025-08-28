@@ -146,33 +146,23 @@ class LlamaCppAutoDuckVLM:
             print(f"       -hf ggml-org/Qwen2.5-VL-7B-Instruct-GGUF \\")
             print(f"       --host 0.0.0.0 --port 8080 \\")
             print(f"       --n-gpu-layers 99 --ctx-size 1024 --batch-size 256 --threads 4 --cont-batching")
+            print(f"   docker run --gpus all -p 8080:8080 ghcr.io/ggml-org/llama.cpp:server-cuda \\")
+            print(f"       -hf ggml-org/Qwen2.5-VL-7B-Instruct-GGUF \\")
+            print(f"       --host 0.0.0.0 --port 8080 --n-gpu-layers 99")
             return False
         return False
 
     def get_autonomous_prompt(self):
-        """Enhanced prompt for smart obstacle avoidance navigation"""
+        """Optimized prompt for autonomous driving decisions"""
         return (
-            "You are an autonomous robot car's vision system. Analyze this road/environment image and make a smart driving decision.\n\n"
-            "DECISION PRIORITY RULES:\n"
-            "1. FORWARD: Only if the path ahead is completely clear and safe\n"
-            "2. LEFT: If there's an obstacle ahead but the left side looks clearer/safer\n"
-            "3. RIGHT: If there's an obstacle ahead but the right side looks clearer/safer\n"
-            "4. STOP: ONLY for immediate extreme danger (person very close, cliff, wall directly ahead)\n\n"
-            "OBSTACLE AVOIDANCE STRATEGY:\n"
-            "- If you see a static obstacle (object, barrier, parked car): Choose LEFT or RIGHT to go around it\n"
-            "- If you see a moving obstacle (person, vehicle): Choose the direction with more space\n"
-            "- If both sides are blocked: Choose the side with slightly more space\n"
-            "- If you see a clear road ahead: Choose FORWARD\n\n"
-            "AVOID GETTING STUCK:\n"
-            "- Don't choose STOP unless there's immediate danger\n"
-            "- Always try to find a way around obstacles\n"
-            "- Prefer LEFT/RIGHT over STOP for navigation\n\n"
-            "Respond with: DECISION - Brief reason\n"
-            "Examples:\n"
-            "- 'LEFT - Object ahead, left side is clearer'\n"
-            "- 'RIGHT - Person on left, more space on right'\n"
-            "- 'FORWARD - Clear road ahead'\n"
-            "- 'STOP - Person directly in front, too close'"
+            "You are an autonomous robot car's vision system. Analyze this road/environment image and make a driving decision.\n\n"
+            "Rules:\n"
+            "- STOP: If you see people, obstacles, or immediate danger\n"
+            "- LEFT: For left turns, left lane changes, or avoiding right-side obstacles\n"
+            "- RIGHT: For right turns, right lane changes, or avoiding left-side obstacles\n"
+            "- FORWARD: Only if the path ahead is completely clear and safe\n\n"
+            "Respond with just the decision word (FORWARD/LEFT/RIGHT/STOP) followed by a brief reason.\n"
+            "Example: STOP - Person crossing ahead"
         )
 
     def encode_image_for_llamacpp(self, frame):
