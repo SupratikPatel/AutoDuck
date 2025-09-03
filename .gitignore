@@ -21,12 +21,22 @@ wheels/
 *.egg
 MANIFEST
 
-# Virtual Environment
+# Virtual Environment (complete exclusion)
 .venv/
 venv/
 ENV/
 env/
 .env
+# Specific large files in virtual environment
+.venv/Lib/site-packages/cv2/cv2.pyd
+.venv/Lib/site-packages/cv2/LICENSE-3RD-PARTY.txt
+.venv/Lib/site-packages/*/
+site-packages/
+# All DLL and binary files
+*.dll
+*.pyd
+*.so
+*.dylib
 
 # PyTorch Models & Weights
 *.pt
@@ -47,15 +57,54 @@ vlm_server/*.log
 vlm_server/logs/
 vlm_server/debug_images/
 vlm_server/recordings/
+
+# Large Media Files (Videos, Images, Audio)
 *.avi
 *.mp4
 *.mov
+*.MOV
+*.mkv
+*.wmv
+*.flv
+*.webm
+*.m4v
+# Large images
+*.tiff
+*.tif
+*.bmp
+*.raw
+# Audio files
+*.wav
+*.flac
+*.aac
+*.m4a
+*.wma
 
 # LLaMA Models & Data
 llama_models/
 *.gguf
 *.bin
 *.safetensors
+
+# Large Archive Files
+*.zip
+*.rar
+*.7z
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.gz
+*.bz2
+*.xz
+
+# Large Binary/Executable Files
+*.exe
+*.msi
+*.dmg
+*.pkg
+*.deb
+*.rpm
+*.app
 
 # Docker
 .dockerignore
@@ -112,6 +161,12 @@ Thumbs.db
 duckie_v2-main/
 server_side_streams/
 demonstration_video/
+# Large presentation and demo files
+Final_Presentation.pptx
+*.pptx
+*.pdf
+# Specific large demo files
+Demostration.MOV
 
 # Jupyter Notebook
 .ipynb_checkpoints
