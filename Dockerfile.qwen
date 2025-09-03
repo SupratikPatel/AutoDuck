@@ -1,0 +1,30 @@
+# Alternative: Custom Dockerfile for Qwen 2.5
+FROM nvidia/cuda:11.7-runtime-ubuntu20.04
+
+# Install Python and dependencies
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    git \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Install Python packages
+RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu117
+RUN pip3 install transformers accelerate bitsandbytes optimum auto-gptq
+
+# Copy requirements if you have custom ones
+# COPY requirements.txt .
+# RUN pip3 install -r requirements.txt
+
+# Create model directory
+RUN mkdir -p /models
+
+# Expose port
+EXPOSE 8000
+
+# Default command (you can override this)
+CMD ["python3", "-c", "print('Qwen 2.5 Docker container ready. Mount your model and run your inference script.')"]
