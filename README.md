@@ -83,12 +83,74 @@ cd vlm_server
 python start_both_vlm_systems.py
 ```
 
+### **Alternative Setup: Client/Server inside DuckieBot container**
+
+If you prefer running the DuckieBot-side code from inside the `duckietown/dt-duckiebot-interface` container and a separate processing server, see `clientServer/README.md`.
+
+High-level steps:
+- SSH into the DuckieBot, find and `docker exec` into the interface container
+- Clone this repo inside the container and run `./run_autonomous_driving.sh`
+- On your PC/laptop, run `python server/autonomous_server_qwen_docker.py` (after updating IPs)
+
 ### **6. Select Your Mode**
 
 Choose from the menu:
 - **Option 1**: Webcam VLM (localhost:5000) - Direct camera input
 - **Option 2**: Screen Capture VLM (localhost:3000) - Analyze any video/screen
 - **Option 3**: Both systems simultaneously
+
+## 📁 **Project Structure & Workflow**
+
+```
+duckieT/
+├── vlm_server/                          # Main VLM System (Screen Capture)
+│   ├── llamacpp/
+│   │   └── llamacpp_autoduck.py        # Webcam VLM with Flask dashboard
+│   ├── screen_capture_vlm_with_dashboard.py  # Screen capture VLM
+│   └── start_both_vlm_systems.py       # Launcher script
+├── clientServer/                        # Alternative: Client/Server Architecture
+│   ├── autonomous_driving_dashboard.py  # Web monitoring dashboard
+│   ├── run_autonomous_driving.sh       # DuckieBot launcher
+│   ├── src/
+│   │   ├── object_follower/
+│   │   │   └── scripts/
+│   │   │       └── autonomous_detector.py  # ROS node for DuckieBot
+│   │   └── duckietown_msgs/            # ROS message definitions
+│   └── README.md                       # Client/Server setup guide
+└── README.md                           # This file - Main documentation
+```
+
+### **🔄 Workflow Overview**
+
+#### **Method 1: Screen Capture VLM (Recommended)**
+```
+1. Start VLM Server (Docker) → localhost:8080
+2. Launch Screen Capture VLM → localhost:3000
+3. Select DuckieBot camera area on screen
+4. VLM analyzes captured area → Generates navigation commands
+5. Commands sent to DuckieBot keyboard control GUI
+6. DuckieBot executes movements (WASD/Arrow keys)
+```
+
+#### **Method 2: Client/Server Architecture**
+```
+1. Start VLM Server (Docker) → localhost:8080
+2. Start Processing Server → localhost:8000
+3. Launch DuckieBot ROS node → Connects to processing server
+4. DuckieBot camera → Processing server → VLM analysis
+5. Commands sent back to DuckieBot via ROS
+6. DuckieBot executes autonomous movements
+```
+
+### **🎯 Key Components**
+
+| Component | Purpose | Port | Method |
+|-----------|---------|------|--------|
+| **VLM Server** | Qwen2.5-VL inference | 8080 | Docker |
+| **Screen Capture VLM** | Screen analysis + keyboard control | 3000 | Python |
+| **Webcam VLM** | Direct camera analysis | 5000 | Python |
+| **Processing Server** | Client/Server bridge | 8000 | Python |
+| **DuckieBot ROS** | Robot control interface | - | ROS |
 
 ## 🎥 **Screen Capture Mode Setup**
 
@@ -136,6 +198,86 @@ docker run --gpus all -p 8080:8080 ghcr.io/ggml-org/llama.cpp:server-cuda \
 ```
 
 **Find more models at:** [Hugging Face GGUF Models](https://huggingface.co/models?library=gguf&sort=trending)
+
+## 🐳 **Recommended Deployment: Dockerized LLMs**
+
+### **Why Dockerized LLMs?**
+
+**✅ Advantages:**
+- **Easy Setup**: One-command deployment
+- **GPU Optimization**: Automatic CUDA/MLX integration
+- **Isolation**: No dependency conflicts
+- **Portability**: Works across different systems
+- **Performance**: Optimized inference engines
+
+### **Platform-Specific Recommendations**
+
+#### **🪟 Windows (NVIDIA GPU)**
+**Preferred: Docker with CUDA support**
+```bash
+# Install Docker Desktop with NVIDIA Container Toolkit
+# Then run optimized GGUF models:
+docker run --gpus all -p 8080:8080 ghcr.io/ggml-org/llama.cpp:server-cuda \
+    -hf ggml-org/Qwen2.5-VL-7B-Instruct-GGUF \
+    --host 0.0.0.0 --port 8080 \
+    --n-gpu-layers 99 --ctx-size 1024 --batch-size 256 --threads 4 --cont-batching
+```
+
+**Benefits:**
+- Full GPU acceleration with CUDA
+- Optimized memory management
+- Easy model switching
+- Production-ready performance
+
+#### **🍎 macOS (Apple Silicon)**
+**Preferred: MLX-optimized Docker**
+```bash
+# For Apple Silicon Macs (M1/M2/M3)
+docker run -p 8080:8080 ghcr.io/ggml-org/llama.cpp:server-mlx \
+    -hf ggml-org/Qwen2.5-VL-7B-Instruct-GGUF \
+    --host 0.0.0.0 --port 8080 \
+    --mlx --ctx-size 1024 --batch-size 256 --threads 8
+```
+
+**Benefits:**
+- Native Apple Silicon optimization
+- Unified memory architecture
+- Excellent performance on M-series chips
+- Lower power consumption
+
+#### **🐧 Linux (NVIDIA/AMD)**
+**Preferred: Docker with platform-specific GPU support**
+```bash
+# NVIDIA GPUs
+docker run --gpus all -p 8080:8080 ghcr.io/ggml-org/llama.cpp:server-cuda \
+    -hf ggml-org/Qwen2.5-VL-7B-Instruct-GGUF \
+    --host 0.0.0.0 --port 8080 --n-gpu-layers 99
+
+# AMD GPUs (ROCm)
+docker run --device=/dev/kfd --device=/dev/dri --group-add video -p 8080:8080 \
+    ghcr.io/ggml-org/llama.cpp:server-rocm \
+    -hf ggml-org/Qwen2.5-VL-7B-Instruct-GGUF \
+    --host 0.0.0.0 --port 8080 --n-gpu-layers 99
+```
+
+### **🚫 Avoid These Approaches**
+
+**❌ Local Python Installation:**
+- Complex dependency management
+- Platform-specific compilation issues
+- Harder to maintain and update
+- Potential CUDA version conflicts
+
+**❌ Ollama (for this project):**
+- Slower
+- Less control over inference parameters
+- Not optimized for real-time robotics
+
+**✅ Stick with Dockerized GGUF/MLX models for:**
+- Maximum performance
+- Easy deployment
+- Cross-platform compatibility
+- Production reliability
 
 ### **Customizing Model Parameters**
 
