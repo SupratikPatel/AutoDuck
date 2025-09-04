@@ -122,7 +122,7 @@ duckieT/
 
 ### **🔄 Workflow Overview**
 
-#### **Method 1: Screen Capture VLM (Recommended)**
+#### **Method 1: Screen Capture VLM**
 ```
 1. Start VLM Server (Docker) → localhost:8080
 2. Launch Screen Capture VLM → localhost:3000
