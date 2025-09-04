@@ -1,0 +1,36 @@
+# AutoDuck VLM System Requirements
+# Core dependencies for Vision Language Model integration
+
+# Computer Vision and Image Processing
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# Web Framework and API
+flask>=2.3.0
+requests>=2.31.0
+
+# Screen Capture and GUI
+pyautogui>=0.9.54
+pygetwindow>=0.0.9
+mss>=9.0.1
+keyboard>=0.13.5
+
+# GUI Framework
+tkinter
+
+# System and Utilities
+subprocess32>=3.5.4; python_version < "3.3"
+threading
+json
+base64
+time
+datetime
+io
+argparse
+os
+sys
+
+# Optional: Enhanced performance (uncomment if needed)
+# torch>=2.0.0
+# torchvision>=0.15.0
+# transformers>=4.30.0

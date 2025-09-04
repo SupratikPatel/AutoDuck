@@ -69,15 +69,9 @@ docker run --gpus all -p 8080:8080 ghcr.io/ggml-org/llama.cpp:server-cuda \
 
 **For Other GPUs:**
 ```bash
-# RTX 4090 (Higher Performance)
-docker run --gpus all -p 8080:8080 ghcr.io/ggml-org/llama.cpp:server-cuda \
-    -hf ggml-org/Qwen2.5-VL-7B-Instruct-GGUF \
-    --host 0.0.0.0 --port 8080 \
-    --n-gpu-layers 99 --ctx-size 2048 --batch-size 512 --threads 8 --cont-batching
-
 # RTX 3060 (Lower VRAM)
 docker run --gpus all -p 8080:8080 ghcr.io/ggml-org/llama.cpp:server-cuda \
-    -hf ggml-org/Qwen2.5-VL-7B-Instruct-GGUF \
+    -hf ggml-org/Qwen2.5-VL-3B-Instruct-GGUF \
     --host 0.0.0.0 --port 8080 \
     --n-gpu-layers 99 --ctx-size 512 --batch-size 128 --threads 2 --cont-batching
 ```
@@ -179,7 +173,7 @@ docker run --gpus all -p 8080:8080 ghcr.io/ggml-org/llama.cpp:server-cuda \
 - Great for testing and development
 - Select specific screen regions for analysis
 
-### **Controls**
+### **Controls- Cool Dashboard in localhost:3000**
 - **SPACE**: Toggle continuous analysis
 - **C**: Toggle continuous mode
 - **Q**: Quit application
@@ -188,30 +182,25 @@ docker run --gpus all -p 8080:8080 ghcr.io/ggml-org/llama.cpp:server-cuda \
 ## 🦆 **Detection Capabilities**
 
 ### **Primary Detection Targets**
-- **Duckiebots**: Blue chassis, yellow wheels, rubber duck on top
+- **Duckiebots**: Blue chassis, yellow wheels
 - **Yellow Rubber Ducks**: Classic duck toys and duck-shaped objects
 - **Red Lines**: Stop lines and red tape markings
 - **Other Obstacles**: People, vehicles, barriers
 
 ### **Detection Range**
-- **20cm proximity detection** for all targets
+- **10cm proximity detection** for all targets
 - **Smart lane-changing** when obstacles detected
 - **Intelligent navigation** with obstacle avoidance
 
 ## 🛣️ **Navigation Strategy**
 
 ### **Obstacle Avoidance Protocol**
-1. **STOP** when obstacle detected within 20cm
+1. **STOP** when obstacle detected within 10cm
 2. **LEFT** to position in left lane
 3. **RIGHT** to navigate around obstacle
 4. **RIGHT** to return to original lane
 5. **FORWARD** to continue navigation
 
-### **Performance Metrics**
-- **Response Time**: <1 second average
-- **FPS**: >1.2 FPS sustained
-- **Success Rate**: >95% decision accuracy
-- **Anti-deadlock**: Prevents getting stuck in loops
 
 ## 🔧 **Troubleshooting**
 
@@ -259,11 +248,6 @@ curl http://localhost:8080/health
 --n-gpu-layers 99 --ctx-size 512 --batch-size 128 --threads 2
 ```
 
-**For RTX 4090 (24GB VRAM):**
-```bash
---n-gpu-layers 99 --ctx-size 2048 --batch-size 512 --threads 8
-```
-
 ## 📊 **Dashboard Features**
 
 ### **Real-time Monitoring**
@@ -287,7 +271,7 @@ Edit the system prompts in:
 - `vlm_server/screen_capture_vlm_with_dashboard.py`
 
 **Key Parameters:**
-- Detection distance (currently 20cm)
+- Detection distance (currently 10cm)
 - Obstacle types and priorities
 - Navigation strategies
 - Performance thresholds
@@ -318,14 +302,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **Duckietown** for the autonomous vehicle platform
 - **OpenCV** for computer vision capabilities
 
-## 📞 **Support**
 
-- **Issues**: [GitHub Issues](https://github.com/SupratikPatel/AutoDuck/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/SupratikPatel/AutoDuck/discussions)
-- **Documentation**: Check the `/docs` folder for detailed guides
-
----
-
-**🎉 Ready to experience the future of autonomous navigation with AI!**
-
-*Built with ❤️ for the Duckietown community*
