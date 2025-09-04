@@ -158,16 +158,16 @@ class LlamaCppAutoDuckVLM:
 
 CRITICAL DETECTION REQUIREMENTS:
 - Objects that appear large may actually be FAR AWAY due to the small scale environment
-- Only STOP when obstacles are VERY CLOSE (within 10cm or filling most of the camera view)
+- Only STOP when obstacles are VERY CLOSE (within 20cm or filling most of the camera view)
 - You can continue FORWARD even with obstacles visible ahead if they are distant
 
 Available commands:
 - FORWARD: Continue straight ahead (preferred action for clear or distant obstacles)
 - LEFT: Turn left (when path ahead is blocked and left side is clear)
 - RIGHT: Turn right (when path ahead is blocked and right side is clear)  
-- STOP: Stop for extremely close obstacles, immediate danger, or Duckietown inhabitants within 10cm
+- STOP: Stop for extremely close obstacles, immediate danger, or Duckietown inhabitants within 20cm
 
-🦆 MANDATORY STOP CONDITIONS (within 10cm):
+🦆 MANDATORY STOP CONDITIONS (within 20cm):
 1. DUCKIEBOTS: Small robotic vehicles with these distinctive features:
    * Blue/dark blue/black main chassis (rectangular robot body)
    * Bright yellow wheels on sides
@@ -175,34 +175,55 @@ Available commands:
    * LED strip lights (often colored/blinking) 
    * Visible electronic components, cameras, or sensors
    * Approximately 10-15cm in size
-   * STOP immediately if within 10cm, wait for them to pass
+   * STOP immediately if within 20cm, wait for them to pass
 
 2. YELLOW RUBBER DUCKS: Small yellow duck toys or any duck-like objects
    * Classic yellow rubber duck shape
    * Any small yellow duck toys on the road or nearby
-   * STOP immediately if within 10cm to protect Duckietown inhabitants
+   * STOP immediately if within 20cm to protect Duckietown inhabitants
 
 3. RED LINES: Red stop lines or red tape markings
    * Red colored lines across the road surface
    * Red tape or paint markings indicating stop zones
-   * STOP when within 10cm and wait before proceeding
+   * STOP when within 20cm and wait before proceeding
 
 Navigation Strategy:
 - DEFAULT to FORWARD unless path is completely blocked
 - Objects in distance = FORWARD (they're farther than they look due to miniature scale)
-- 🦆 SAFETY OVERRIDE: Always STOP for duckiebots, yellow ducks, or red lines within 10cm
-- Only turn LEFT/RIGHT when path directly ahead is blocked AND turn direction is clear
+- 🦆 SAFETY OVERRIDE: Always STOP for duckiebots, yellow ducks, or red lines within 20cm
+
+🛣️ OBSTACLE AVOIDANCE PROTOCOL:
+When encountering obstacles (duckiebots, yellow ducks, red lines, or other barriers):
+1. FIRST: STOP immediately when obstacle is within 20cm
+2. THEN: Execute LEFT command to steer into left vacant lane to go around obstacle
+3. NAVIGATE: Execute RIGHT command to go around the obstacle when:
+   - White lane lines are too close (indicating edge of left lane), OR
+   - Need to navigate around the obstacle to avoid collision, OR
+   - After brief left steering to position for going around
+4. RETURN: Execute RIGHT command to return to original right lane when:
+   - Obstacle is no longer visible/detected, OR
+   - After approximately 3 seconds of maneuvering
+5. RESUME: Continue FORWARD once back in proper lane
+
+- This lane-changing strategy ensures safe obstacle avoidance while maintaining traffic flow
+- Use RIGHT command to navigate around obstacles after initial LEFT positioning
+- Return to right lane as soon as obstacle is cleared or after 3 seconds maximum
+- Only use LEFT/RIGHT for strategic lane changes, not for simple turns
 - Balance forward progress with Duckietown safety - protect the ducks and robots!
 
 Respond with: COMMAND - Brief reasoning
 
 Examples:
 - "FORWARD - Road clear, obstacles distant, no ducks or robots nearby"
-- "STOP - Yellow duck toy detected within 10cm, protecting Duckietown inhabitant"
-- "STOP - Duckiebot detected: blue chassis with yellow wheels and rubber duck on top, too close for safe passing"
-- "STOP - Red stop line within 10cm, stopping as required"
-- "LEFT - Path blocked ahead, left side clear, no ducks in turn path"
-- "RIGHT - Obstacle ahead, right lane clear for safe passage" """
+- "STOP - Yellow duck toy detected within 20cm, protecting Duckietown inhabitant - will execute left lane change"
+- "STOP - Duckiebot detected: blue chassis with yellow wheels and rubber duck on top, within 20cm - stopping then left lane change"
+- "STOP - Red stop line within 20cm, stopping as required - will use left lane to bypass"
+- "LEFT - Executing lane change to go around obstacle, steering into left vacant lane"
+- "RIGHT - White lane lines too close, navigating around obstacle to avoid collision"
+- "RIGHT - Going around obstacle after left positioning, steering right to bypass"
+- "RIGHT - Obstacle no longer visible, returning to original right lane immediately"
+- "RIGHT - After 3 seconds of maneuvering, returning to original right lane"
+- "FORWARD - Back in proper lane, continuing forward progress" """
 
     def encode_image_for_llamacpp(self, frame):
         """Encode image for llama.cpp server"""

@@ -312,7 +312,7 @@ Available commands:
 - FORWARD: Continue straight ahead (preferred action for clear or distant obstacles)
 - LEFT: Turn left (when path ahead is blocked and left side is clear)
 - RIGHT: Turn right (when path ahead is blocked and right side is clear)  
-- STOP: Stop for extremely close obstacles, immediate danger, or Duckietown inhabitants (ducks/robots within 10cm)
+- STOP: Stop for extremely close obstacles, immediate danger, or Duckietown inhabitants (ducks/robots within 20cm)
 - BACKWARD: Move backward to create space, then reassess (use when stuck or in deadlock)
 
 Duckietown Environment Rules:
@@ -322,7 +322,7 @@ Duckietown Environment Rules:
 4. PROTECT DUCKIETOWN INHABITANTS: Duck toys, other robots, pedestrians, small animals
 5. Traffic signs and infrastructure are proportionally large for the small robot
 
-🦆 CRITICAL STOP CONDITIONS (within 10cm - MANDATORY):
+🦆 CRITICAL STOP CONDITIONS (within 20cm - MANDATORY):
 1. DUCKIEBOTS: Small robotic vehicles with these EXACT distinctive features:
    * Blue/dark blue/black main chassis (rectangular robot body)
    * Bright yellow wheels on sides
@@ -330,44 +330,68 @@ Duckietown Environment Rules:
    * LED strip lights (often colored/blinking) 
    * Visible electronic components, cameras, or sensors
    * Approximately 10-15cm in size
-   * STOP immediately if within 10cm, wait for them to pass or consider lane change if safe
+   * STOP immediately if within 20cm, wait for them to pass or consider lane change if safe
 
 2. YELLOW RUBBER DUCKS: Small yellow duck toys or any duck-like objects
    * Classic yellow rubber duck shape and color
    * Any small yellow duck toys on the road or nearby
    * Duck-shaped objects regardless of exact size
-   * STOP immediately if within 10cm to protect Duckietown inhabitants
+   * STOP immediately if within 20cm to protect Duckietown inhabitants
 
 3. RED LINES: Red stop lines or red tape markings
    * Red colored lines across the road surface
    * Red tape or paint markings indicating stop zones
    * Any red horizontal markings on the road
-   * STOP when within 10cm and wait for 5 seconds before proceeding
+   * STOP when within 20cm and wait for 5 seconds before proceeding
 
 4. OTHER SAFETY ITEMS:
-   * OTHER ROBOTS: Any moving robot, autonomous vehicle, or robotic platform - STOP if within 10cm
+   * OTHER ROBOTS: Any moving robot, autonomous vehicle, or robotic platform - STOP if within 20cm
    * TRAFFIC SIGNS: Stop signs, yield signs - respect and stop appropriately
-   * PEDESTRIANS: Any people or figures - STOP immediately if within 10cm
+   * PEDESTRIANS: Any people or figures - STOP immediately if within 20cm
    * When in doubt about small moving objects, prioritize safety and STOP
 
 Navigation Strategy:
 - DEFAULT to FORWARD unless path is completely blocked
 - Objects in distance = FORWARD (they're farther than they look due to miniature scale)
-- 🦆 SAFETY OVERRIDE: Always STOP for duckiebots, yellow ducks, red lines, or people within 10cm
-- Only STOP when obstacles are VERY CLOSE (within 10cm or filling most of camera view)
+- 🦆 SAFETY OVERRIDE: Always STOP for duckiebots, yellow ducks, red lines, or people within 20cm
+- Only STOP when obstacles are VERY CLOSE (within 20cm or filling most of camera view)
+
+🛣️ OBSTACLE AVOIDANCE PROTOCOL:
+When encountering obstacles (duckiebots, yellow ducks, red lines, or other barriers):
+1. FIRST: STOP immediately when obstacle is within 20cm
+2. THEN: Execute LEFT command to steer into left vacant lane to go around obstacle
+3. NAVIGATE: Execute RIGHT command to go around the obstacle when:
+   - White lane lines are too close (indicating edge of left lane), OR
+   - Need to navigate around the obstacle to avoid collision, OR
+   - After brief left steering to position for going around
+4. RETURN: Execute RIGHT command to return to original right lane when:
+   - Obstacle is no longer visible/detected, OR
+   - After approximately 3 seconds of maneuvering
+5. RESUME: Continue FORWARD once back in proper lane
+
+- This lane-changing strategy ensures safe obstacle avoidance while maintaining traffic flow
+- Use RIGHT command to navigate around obstacles after initial LEFT positioning
+- Return to right lane as soon as obstacle is cleared or after 3 seconds maximum
+- Only use LEFT/RIGHT for strategic lane changes, not for simple turns
 
 LANE CHANGING PROTOCOL (prioritized for obstacle avoidance):
 - When encountering duckiebots or obstacles in current lane:
-  1. First assess if LEFT lane is clear and safe to change into
-  2. If left lane blocked, check if RIGHT lane is clear and safe
-  3. Execute lane change to avoid obstacle rather than just stopping
-  4. Since robot is mostly in right lane, LEFT lane is typically clearer
-  5. After passing obstacle, return to original lane when safe
+  1. STOP first when obstacle is within 20cm
+  2. Execute LEFT command to steer into left vacant lane
+  3. Execute RIGHT command to navigate around obstacle when:
+     - White lane lines are too close (edge of left lane), OR
+     - Need to go around obstacle to avoid collision, OR
+     - After brief left positioning
+  4. Execute RIGHT command to return to original right lane when:
+     - Obstacle is no longer visible/detected, OR
+     - After approximately 3 seconds of maneuvering
+  5. Resume FORWARD once back in proper lane
 
 - Only turn LEFT/RIGHT when:
-  * Path directly ahead is blocked AND turn direction is clear, OR
-  * Executing strategic lane change to bypass obstacle
-- STOP for immediate very close obstacles, red stop lines (wait 5 seconds), or Duckietown inhabitants
+  * Executing strategic lane change to bypass obstacle (STOP → LEFT → RIGHT to navigate → RIGHT to return)
+  * Navigating around obstacles after left positioning
+  * Returning to original lane after obstacle clearance or 3-second timeout
+- STOP for immediate very close obstacles, red stop lines, or Duckietown inhabitants
 - Use BACKWARD when completely stuck or need to create space for turning
 - Balance forward progress with Duckietown safety - protect the ducks!
 
@@ -375,14 +399,17 @@ Respond with: COMMAND - Brief reasoning
 
 Examples:
 - "FORWARD - Road clear, obstacles distant, no duckiebots, yellow ducks, or red lines nearby"
-- "STOP - Yellow rubber duck detected within 10cm, protecting Duckietown inhabitant"
-- "STOP - Duckiebot detected: blue chassis with yellow wheels and rubber duck on top, within 10cm - too close for safe passing"
-- "STOP - Red stop line within 10cm, stopping for 5 seconds as required"
-- "STOP - Multiple yellow duck toys within 10cm, ensuring Duckietown safety"
-- "LEFT - Duckiebot ahead in current lane beyond 10cm, left lane clear, executing lane change to bypass obstacle"
-- "RIGHT - Obstacle in current lane, left blocked but right lane clear, changing lanes to avoid"
-- "LEFT - Path blocked ahead, left side clear, no ducks or robots in turn path"
-- "FORWARD - Distant duckiebot visible but far away (>10cm), safe to continue" """
+- "STOP - Yellow rubber duck detected within 20cm, protecting Duckietown inhabitant - will execute left lane change"
+- "STOP - Duckiebot detected: blue chassis with yellow wheels and rubber duck on top, within 20cm - stopping then left lane change"
+- "STOP - Red stop line within 20cm, stopping as required - will use left lane to bypass"
+- "STOP - Multiple yellow duck toys within 20cm, ensuring Duckietown safety - executing left lane change"
+- "LEFT - Executing lane change to go around obstacle, steering into left vacant lane"
+- "RIGHT - White lane lines too close, navigating around obstacle to avoid collision"
+- "RIGHT - Going around obstacle after left positioning, steering right to bypass"
+- "RIGHT - Obstacle no longer visible, returning to original right lane immediately"
+- "RIGHT - After 3 seconds of maneuvering, returning to original right lane"
+- "FORWARD - Back in proper lane, continuing forward progress"
+- "FORWARD - Distant duckiebot visible but far away (>20cm), safe to continue" """
     
     def analyze_image_with_vlm(self, image):
         """Send image to VLM for analysis"""
