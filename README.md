@@ -177,9 +177,8 @@ When using **Screen Capture VLM** (Option 2):
 | Model | Size | VRAM | Performance | Use Case |
 |-------|------|------|-------------|----------|
 | **Qwen2.5-VL-7B** | 7B | 8GB+ | ⭐⭐⭐⭐⭐ | **Recommended** - Best balance |
-| Qwen2.5-VL-3B | 3B | 4GB+ | ⭐⭐⭐⭐ | Lower-end GPUs |
-| Qwen2.5-VL-14B | 14B | 16GB+ | ⭐⭐⭐⭐⭐ | High-end GPUs |
-| Qwen2.5-VL-32B | 32B | 32GB+ | ⭐⭐⭐⭐⭐ | Professional setups |
+| apple/FastVLM-1.5B | 1.5B | 4GB+ | ⭐⭐⭐⭐ | Lower-end GPUs |
+| Gemma-3-27b | 27B | 17GB+ | ⭐⭐⭐⭐⭐ | High-end GPUs |
 
 ### **Alternative Models**
 
